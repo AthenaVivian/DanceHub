@@ -18,6 +18,7 @@ const uid = () => crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Mat
 const normalize = (value = "") => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 const escapeHtml = (value = "") => String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const READ_ONLY_MODE = new URLSearchParams(window.location.search).get("readonly") === "1";
+const DASHBOARD_DEFAULTS = { monthRange: 12, styleLimit: 5, teacherLimit: 5 };
 
 class LocalStorageRepository {
   constructor(key) {
@@ -28,6 +29,7 @@ class LocalStorageRepository {
     try {
       const stored = JSON.parse(localStorage.getItem(this.key)) || this.empty();
       stored.settings = { ...this.empty().settings, ...(stored.settings || {}) };
+      stored.settings.dashboard = { ...DASHBOARD_DEFAULTS, ...(stored.settings.dashboard || {}) };
       stored.syncState = { ...this.empty().syncState, ...(stored.syncState || {}) };
       const syntheticPattern = /^(demo-|real-format-|style-candidate-|pjm-|pmt-|xspace-|financial-)/i;
       const syntheticEvents = (stored.events || []).filter(event => syntheticPattern.test(event.gmailMessageId || ""));
@@ -89,7 +91,7 @@ class LocalStorageRepository {
   empty() {
     return {
       events: [], classes: [], processedMessageIds: [],
-      settings: { clientId: "", query: DEFAULT_QUERY, styleDictionary: {}, disabledStyles: [], historyWindow: "24m" },
+      settings: { clientId: "", query: DEFAULT_QUERY, styleDictionary: {}, disabledStyles: [], historyWindow: "24m", dashboard: { ...DASHBOARD_DEFAULTS } },
       syncState: { lastSyncTimestamp: null, lastProcessedGmailMessageId: null, syncVersion: SYNC_VERSION, parserVersion: PARSER_VERSION, historyImportCompleted: false, historyImportedAt: null, emailsScanned: 0, danceEventsFound: 0, duplicatesMerged: 0, lastError: "" }
     };
   }
@@ -1056,18 +1058,36 @@ function renderAnalytics() {
   document.querySelector("#booked-stat").textContent = data.booked;
   document.querySelector("#canceled-stat").textContent = data.canceled;
   document.querySelector("#net-stat").textContent = data.net;
+  const dashboard = { ...DASHBOARD_DEFAULTS, ...(repo.data.settings.dashboard || {}) };
+  document.querySelector("#month-range").value = String(dashboard.monthRange);
+  document.querySelector("#style-limit").value = String(dashboard.styleLimit);
+  document.querySelector("#teacher-limit").value = String(dashboard.teacherLimit);
   const months = []; const now = new Date();
-  for (let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push([d.toISOString().slice(0,7),d.toLocaleDateString(undefined,{month:"short"})]);}
+  for (let i=dashboard.monthRange-1;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    months.push([monthKey(d),d.toLocaleDateString(undefined,{month:"short"}),String(d.getFullYear())]);
+  }
   const monthMap = Object.fromEntries(data.byMonth); const max = Math.max(1,...months.map(([key])=>monthMap[key]||0));
-  document.querySelector("#month-chart").innerHTML = months.map(([key,label])=>`<div class="bar-col"><i style="height:${Math.max(2,((monthMap[key]||0)/max)*125)}px"></i><span>${label}</span></div>`).join("");
-  renderRanks("#style-list", data.byStyle);
-  renderRanks("#teacher-list", data.byTeacher);
+  document.querySelector("#month-chart").innerHTML = months.map(([key,label,year])=>{
+    const count = monthMap[key] || 0;
+    return `<div class="bar-col"><div class="bar-tooltip"><strong>${count}</strong><span>${escapeHtml(label)} ${escapeHtml(year)}</span><small>${count} class${count===1?"":"es"}</small></div><b class="bar-value">${count}</b><i aria-label="${escapeHtml(`${label} ${year}: ${count} classes`)}" style="height:${Math.max(2,(count/max)*125)}px"></i><span>${escapeHtml(label)}<small>${escapeHtml(year)}</small></span></div>`;
+  }).join("");
+  renderRanks("#style-list", data.byStyle, dashboard.styleLimit);
+  renderRanks("#teacher-list", data.byTeacher, dashboard.teacherLimit);
   document.querySelector("#studio-list").innerHTML = data.byStudio.length ? data.byStudio.map(([name,count])=>`<div class="studio"><strong>${escapeHtml(name)}</strong><small>${count} active class${count===1?"":"es"}</small></div>`).join("") : '<p class="subtitle">No studio data yet.</p>';
 }
-function renderRanks(selector, rows) {
+function monthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}`;
+}
+function updateDashboardSetting(key, value) {
+  repo.data.settings.dashboard = { ...DASHBOARD_DEFAULTS, ...(repo.data.settings.dashboard || {}), [key]: Number(value) };
+  repo.save();
+  renderAnalytics();
+}
+function renderRanks(selector, rows, limit = 5) {
   const max = rows[0]?.[1] || 1;
   const isStyleList = selector === "#style-list";
-  document.querySelector(selector).innerHTML = rows.length ? rows.slice(0,6).map(([name,count])=>`<button class="rank ${isStyleList ? "rank-clickable" : ""}" ${isStyleList ? `data-style-filter="${escapeHtml(name)}"` : ""}><span>${escapeHtml(name)}</span><b>${count}</b><div class="track"><i style="width:${count/max*100}%"></i></div></button>`).join("") : '<p class="subtitle">No data yet.</p>';
+  document.querySelector(selector).innerHTML = rows.length ? rows.slice(0,limit).map(([name,count])=>`<button class="rank ${isStyleList ? "rank-clickable" : ""}" ${isStyleList ? `data-style-filter="${escapeHtml(name)}"` : ""}><span>${escapeHtml(name)}</span><b>${count}</b><div class="track"><i style="width:${count/max*100}%"></i></div></button>`).join("") : '<p class="subtitle">No data yet.</p>';
 }
 function renderAll(){
   renderReview();renderClasses();renderAnalytics();renderHistory();
@@ -1423,6 +1443,9 @@ document.querySelector("#manual-class-button").addEventListener("click",()=>{if(
 document.querySelector("#manual-class-form").addEventListener("submit",saveManualClass);
 document.querySelector("#class-table").addEventListener("click",event=>{const button=event.target.closest("[data-edit-class]");if(button&&!READ_ONLY_MODE)showEditClassDialog(button.dataset.editClass)});
 document.querySelector("#style-list").addEventListener("click",event=>{const button=event.target.closest("[data-style-filter]");if(!button)return;classSearch=button.dataset.styleFilter;document.querySelector("#class-search").value=classSearch;navigate("classes");renderClasses()});
+document.querySelector("#month-range").addEventListener("change",event=>updateDashboardSetting("monthRange", event.target.value));
+document.querySelector("#style-limit").addEventListener("change",event=>updateDashboardSetting("styleLimit", event.target.value));
+document.querySelector("#teacher-limit").addEventListener("change",event=>updateDashboardSetting("teacherLimit", event.target.value));
 document.querySelector("#class-search").addEventListener("input",event=>{classSearch=event.target.value;renderClasses()});
 document.querySelector("#history-search").addEventListener("input",event=>{historySearch=event.target.value;renderHistory()});
 document.querySelector("#diagnostic-button").addEventListener("click",runDiagnosticSearch);

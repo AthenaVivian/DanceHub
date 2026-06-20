@@ -98,9 +98,45 @@
           <article class="stat"><small>Total canceled</small><strong id="canceled-stat">0</strong><p>Matched cancellations</p></article>
         </div>
         <div class="analytics-grid">
-          <article class="panel"><p class="eyebrow">Practice over time</p><h2>Classes by month</h2><div id="month-chart" class="chart"></div></article>
-          <article class="panel"><p class="eyebrow">Your mix</p><h2>Classes by style</h2><div id="style-list" class="rank-list"></div></article>
-          <article class="panel"><p class="eyebrow">Who you learn from</p><h2>Classes by teacher</h2><div id="teacher-list" class="rank-list"></div></article>
+          <article class="panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Practice over time</p><h2>Classes by month</h2></div>
+              <label class="dashboard-control">Range
+                <select id="month-range">
+                  <option value="6">Last 6 months</option>
+                  <option value="12" selected>Last 12 months</option>
+                  <option value="24">Last 24 months</option>
+                </select>
+              </label>
+            </div>
+            <div id="month-chart" class="chart"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Your mix</p><h2>Classes by style</h2></div>
+              <label class="dashboard-control">Show
+                <select id="style-limit">
+                  <option value="3">Top 3</option>
+                  <option value="5" selected>Top 5</option>
+                  <option value="10">Top 10</option>
+                </select>
+              </label>
+            </div>
+            <div id="style-list" class="rank-list"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Who you learn from</p><h2>Classes by teacher</h2></div>
+              <label class="dashboard-control">Show
+                <select id="teacher-limit">
+                  <option value="3">Top 3</option>
+                  <option value="5" selected>Top 5</option>
+                  <option value="10">Top 10</option>
+                </select>
+              </label>
+            </div>
+            <div id="teacher-list" class="rank-list"></div>
+          </article>
           <article class="panel wide"><p class="eyebrow">Where you dance</p><h2>Classes by studio</h2><div id="studio-list" class="studio-list"></div></article>
         </div>
       </section>
@@ -176,6 +212,6 @@
   </dialog>
   <div id="toast" class="toast" role="status"></div>
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script src="app.js?v=20260619-9"></script>
+  <script src="app.js?v=20260619-14"></script>
 </body>
 </html>
