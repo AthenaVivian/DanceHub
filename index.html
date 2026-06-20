@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="DanceHub read-only Gmail dance class tracker.">
+  <title>DanceHub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="ux.css">
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand"><span>DH</span>DanceHub</div>
+      <nav>
+        <button class="nav active" data-view="analytics"><i>01</i> Summary</button>
+        <button class="nav" data-view="classes"><i>02</i> Classes <b id="class-count">0</b></button>
+        <button class="nav" data-view="review"><i>03</i> Review Inbox <b id="review-count">0</b></button>
+        <button class="nav" data-view="history"><i>04</i> Email History</button>
+      </nav>
+      <div class="source">
+        <div class="source-head"><span class="gmail-mark">M</span><div><strong>Gmail</strong><small id="source-state">Not connected</small></div></div>
+        <div class="readonly"><span>●</span> Read-only access</div>
+        <button id="settings-button">Configure source</button>
+      </div>
+    </aside>
+
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow" id="eyebrow">Your dance practice</p>
+          <h1 id="title">Summary</h1>
+          <p class="subtitle" id="subtitle">Unique classes kept, grouped by style and studio.</p>
+        </div>
+        <div class="header-actions">
+          <button class="button ghost" id="share-button">Copy Public Share Link</button>
+          <button class="button ghost" id="export-button">Export Dashboard</button>
+          <button class="button ghost" id="rebuild-button">Rebuild History</button>
+          <button class="button primary" id="sync-button">Sync Now</button>
+        </div>
+      </header>
+
+      <section class="view" id="review-view">
+        <div class="sync-metrics">
+          <div><small>Last sync</small><strong id="metric-last-sync">Never</strong></div>
+          <div><small>Emails scanned</small><strong id="metric-scanned">0</strong></div>
+          <div><small>Dance events found</small><strong id="metric-found">0</strong></div>
+          <div><small>Needs review</small><strong id="metric-review">0</strong></div>
+          <div><small>Duplicates merged</small><strong id="metric-duplicates">0</strong></div>
+        </div>
+        <pre id="sync-error" class="security" style="display:none"></pre>
+        <div class="flow">
+          <div><span>1</span><strong>Gmail events</strong><small>Immutable source records</small></div>
+          <b>→</b>
+          <div class="current"><span>2</span><strong>Human review</strong><small>Resolve uncertain details</small></div>
+          <b>→</b>
+          <div><span>3</span><strong>Classes</strong><small>Normalized attendance ledger</small></div>
+          <b>→</b>
+          <div><span>4</span><strong>Statistics</strong><small>Derived, never hand-edited</small></div>
+        </div>
+
+        <div class="review-toolbar">
+          <div class="tabs">
+            <button class="active" data-review-filter="all">All <span id="all-count">0</span></button>
+            <button data-review-filter="needs_review">Needs review <span id="uncertain-count">0</span></button>
+            <button data-review-filter="ready">Ready <span id="ready-count">0</span></button>
+          </div>
+          <button class="text-button" id="approve-ready">Approve all ready</button>
+        </div>
+        <div id="review-list" class="review-list"></div>
+        <div id="review-empty" class="empty">
+          <span>✓</span><h2>Inbox is clear</h2>
+          <p>Search Gmail or load demo emails to review booking activity.</p>
+        </div>
+      </section>
+
+      <section class="view" id="classes-view">
+        <div class="section-intro">
+          <div><p class="eyebrow">Normalized class ledger</p><h2>Accepted classes</h2></div>
+          <div class="section-tools"><input id="class-search" placeholder="Search classes, e.g. Peridance, Beg House, Huu Rock, 2026-04-18"><button class="button primary" id="manual-class-button">Add class</button></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>Class</th><th>Studio</th><th>Teacher</th><th>Platform</th><th>Status</th></tr></thead>
+            <tbody id="class-table"></tbody>
+          </table>
+          <div id="class-empty" class="empty compact"><p>No accepted classes yet.</p></div>
+        </div>
+      </section>
+
+      <section class="view active" id="analytics-view">
+        <div class="stats">
+          <article class="stat coral"><small>Classes kept</small><strong id="net-stat">0</strong><p>Unique booked classes not canceled</p></article>
+          <article class="stat"><small>Total booked</small><strong id="booked-stat">0</strong><p>Unique class instances</p></article>
+          <article class="stat"><small>Total canceled</small><strong id="canceled-stat">0</strong><p>Matched cancellations</p></article>
+        </div>
+        <div class="analytics-grid">
+          <article class="panel"><p class="eyebrow">Practice over time</p><h2>Classes by month</h2><div id="month-chart" class="chart"></div></article>
+          <article class="panel"><p class="eyebrow">Your mix</p><h2>Classes by style</h2><div id="style-list" class="rank-list"></div></article>
+          <article class="panel"><p class="eyebrow">Who you learn from</p><h2>Classes by teacher</h2><div id="teacher-list" class="rank-list"></div></article>
+          <article class="panel wide"><p class="eyebrow">Where you dance</p><h2>Classes by studio</h2><div id="studio-list" class="studio-list"></div></article>
+        </div>
+      </section>
+
+      <section class="view" id="history-view">
+        <div class="section-intro">
+          <div><p class="eyebrow">Gmail processing log</p><h2>Email History</h2></div>
+          <div class="section-tools"><input id="history-search" placeholder="Search email history, including ignored messages"></div>
+        </div>
+        <div class="security">
+          <strong>Gmail diagnostic</strong>
+          <p>Use this to verify whether Gmail returns a specific email and how Tempo parses it.</p>
+          <label>Query<input id="diagnostic-query" value='subject:jazz subject:funk newer_than:24m'></label>
+          <button class="button ghost" id="diagnostic-button">Run diagnostic search</button>
+          <pre id="diagnostic-output"></pre>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Received</th><th>Subject</th><th>Category</th><th>Platform</th><th>Effect</th><th>Disposition</th></tr></thead>
+            <tbody id="history-table"></tbody>
+          </table>
+          <div id="history-empty" class="empty compact"><p>No processed email history yet.</p></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="settings-dialog">
+    <form method="dialog">
+      <div class="dialog-head"><div><p class="eyebrow">Read-only Gmail source</p><h2>Connect Gmail</h2></div><button value="cancel" class="close">×</button></div>
+      <div class="security"><strong>One permission only</strong><code>https://www.googleapis.com/auth/gmail.readonly</code><p>Tempo can search and read matching messages. It cannot send, delete, label, archive, or change Gmail settings.</p></div>
+      <div class="security"><strong>Browser requirement</strong><p>Google OAuth may not complete inside embedded browsers. Open Tempo in Chrome or Edge at <code>http://localhost:4173</code>, then connect Gmail there.</p></div>
+      <label>OAuth client ID<input id="client-id" placeholder="1234-abc.apps.googleusercontent.com"></label>
+      <div class="security"><strong>Dance email search</strong><p>Tempo automatically searches supported booking signals and platform senders. This search is maintained by the app so older browser settings cannot omit classes.</p></div>
+      <div class="security"><strong>History policy</strong><p>Initial setup and Rebuild History scan the last 24 months. After that, Sync Now only reads new Gmail messages since the last successful sync. Existing history is kept cumulatively.</p></div>
+      <div class="security style-vocab">
+        <strong>Dance style vocabulary</strong>
+        <p>Manage the full list of recognized dance styles, then refresh existing classes from that list.</p>
+        <button class="button ghost" id="open-style-manager" value="default">Manage dance styles</button>
+      </div>
+      <div class="dialog-actions"><button class="button ghost" value="cancel">Cancel</button><button class="button primary" id="save-connect" value="default">Save and connect</button></div>
+    </form>
+  </dialog>
+  <dialog id="style-manager-dialog" class="wide-dialog">
+    <form method="dialog">
+      <div class="dialog-head"><div><p class="eyebrow">Dance vocabulary</p><h2>Manage dance styles</h2></div><button value="cancel" class="close">×</button></div>
+      <div class="security"><strong>How it works</strong><p>Add a style once. Tempo matches it case-insensitively in future emails. Click Refresh styles to update existing classes from the saved list.</p></div>
+      <div class="style-manager-top">
+        <label>New style<input id="style-vocab-name" placeholder="Reggaeton"></label>
+        <button class="button primary" id="add-style-vocab" value="default">Add style</button>
+        <button class="button ghost" id="refresh-style-vocab" value="default">Refresh class styles</button>
+      </div>
+      <p id="style-vocab-status" class="vocab-status"></p>
+      <div id="style-vocab-list" class="vocab-list"></div>
+      <div class="dialog-actions"><button class="button primary" value="default">Done</button></div>
+    </form>
+  </dialog>
+  <dialog id="manual-class-dialog">
+    <form method="dialog" id="manual-class-form">
+      <div class="dialog-head"><div><p class="eyebrow" id="manual-dialog-eyebrow">Local entry</p><h2 id="manual-dialog-title">Add class manually</h2></div><button value="cancel" class="close">×</button></div>
+      <div class="security"><strong>Local only</strong><p>Manual entries and edits are saved in Tempo's local data model. Gmail stays read-only and is not changed.</p></div>
+      <div class="form-grid">
+        <label>Date<input id="manual-date" type="date" required></label>
+        <label>Time<input id="manual-time" type="time" required></label>
+        <label>Studio<input id="manual-studio" required placeholder="PJM DANCE NYC"></label>
+        <label>Teacher<input id="manual-teacher" placeholder="Peter Chow"></label>
+        <label class="span-2">Class name<input id="manual-class-name" required placeholder="Beg Jazz Funk - Peter Chow"></label>
+        <label>Dance style<input id="manual-style" required placeholder="Jazz Funk"></label>
+        <label>Status<select id="manual-status"><option value="booked">Count as kept/booked</option><option value="canceled">Canceled / do not count</option></select></label>
+      </div>
+      <div class="dialog-actions"><button class="button ghost" value="cancel">Cancel</button><button class="button primary" id="save-manual-class" value="default">Add class</button></div>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="https://accounts.google.com/gsi/client" async></script>
+  <script src="app.js?v=20260619-9"></script>
+</body>
+</html>
